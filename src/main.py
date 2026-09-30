@@ -2,15 +2,19 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = current_dir if os.path.basename(current_dir) == "src" else os.path.join(current_dir, "src")
+
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
+from cli.parser import parse_arguments
 
 
 def main() -> int:
     try:
-        if len(sys.argv) < 2:
-            raise ValueError(
-                "No command provided. Please specify a command to execute."
-            )
+        args = parse_arguments(sys.argv)
+        print(f"Parsed arguments: {args}")
         return 0
     except Exception as err:
         sys.stderr.write(f"Error: {err}\n")
