@@ -2,6 +2,8 @@ import sys
 
 
 class IOHandler:
+    """Class to handle input and output operations for the CLI application."""
+
     @staticmethod
     def read_input(
         block_mode: bool, is_rsa: bool = False, is_decipher: bool = False
