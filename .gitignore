@@ -1,6 +1,10 @@
 # Fichiers sujets
 *.pdf
 
+# Fichiers compilés
+*.o
+my_pgp
+
 # Python
 __pycache__/
 *.py[cod]
