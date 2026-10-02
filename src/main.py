@@ -9,12 +9,13 @@ if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
 from cli.parser import parse_arguments
+from cli.controller import Controller
 
 
 def main() -> int:
     try:
         args = parse_arguments(sys.argv)
-        print(f"Parsed arguments: {args}")
+        Controller.dispatch(args)
         return 0
     except Exception as err:
         sys.stderr.write(f"Error: {err}\n")
