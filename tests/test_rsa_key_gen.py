@@ -94,6 +94,36 @@ class TestRsaKeyGeneration(unittest.TestCase):
         with self.assertRaises(ValueError):
             RsaCipher.generate_keys("00", "e3")
 
+    def test_appendix_1024bit_primes_performance(self):
+        """Test avec les deux clés de 1024 bits de l'annexe page 12 (module de 2048 bits)."""
+        p_hex = (
+            "d7c9d58c694fe7ad5d77d888c98d71e7f6a58b4f4dc90582668fd28c0bc20f51"
+            "c667ba7b70cb94842006eb5b223065346f7a6bb307ef572fee882c8ef420410b"
+            "8b8fa8278ae6a300e63123b28ba1d47259bc308827fcd509585bcee1d98b461f"
+            "9eff9c20559540b8c0d6036eff7caf0107d935ecefd5faab87b802bf74c041c8"
+        )
+        q_hex = (
+            "e9dfe6b53248c4dc0f391fdda5694bd9f68e111dac5e921a942a157ec92431dc"
+            "4833e1a327d36cebcc4ac9b76f2ac2a643db8a04c14963759a800f75915de3ff"
+            "beccf86118923b388b352f7e3d20edfd5bb6609fd0b6416da6a56050b000ae9e"
+            "14065f06f46ccfaa84c755689e8d95525bb1de8b8a43d380f4db68baac92e0bf"
+        )
+
+        e_hex, d_hex, n_hex = RsaCipher.generate_keys(p_hex, q_hex)
+
+        # e doit être 65537 (010001) car il est bien inférieur à lambda(N)
+        self.assertEqual(e_hex, "010001")
+        self.assertEqual(len(n_hex), 512)  # 2048 bits = 256 octets = 512 caractères hex
+
+    def test_cli_integration_format(self):
+        """Vérifie le format textuel complet attendu par la CLI (tiret séparateur)."""
+        e_hex, d_hex, n_hex = RsaCipher.generate_keys("d3", "e3")
+        pub_line = f"public key: {e_hex}-{n_hex}"
+        priv_line = f"private key: {d_hex}-{n_hex}"
+
+        self.assertEqual(pub_line, "public key: 0101-19bb")
+        self.assertEqual(priv_line, "private key: 9d5b-19bb")
+
 
 if __name__ == "__main__":
     unittest.main()
