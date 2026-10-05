@@ -53,6 +53,25 @@ class Controller:
             IOHandler.write_output(f"public key: {e_hex}-{n_hex}")
             IOHandler.write_output(f"private key: {d_hex}-{n_hex}")
             return
+        
+        if args.mode == "-c":
+            raw_data = IOHandler.read_input(
+                block_mode=args.block_mode,
+                is_rsa=True,
+                is_decipher=False
+            )
+            ciphered = RsaCipher.cipher(raw_data, args.key)
+            IOHandler.write_output(ciphered)
+        elif args.mode == "-d":
+            raw_data = IOHandler.read_input(
+                block_mode=args.block_mode,
+                is_rsa=True,
+                is_decipher=True
+            )
+            deciphered = RsaCipher.decipher(raw_data.decode("ascii").strip(), args.key)
+            IOHandler.write_raw_bytes(deciphered)
+            sys.stdout.write("\n")
+            sys.stdout.flush()
 
     @staticmethod
     def run_pgp_xor(args) -> None:

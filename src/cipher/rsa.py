@@ -52,3 +52,47 @@ class RsaCipher:
         n_hex = EndianUtils.int_to_hex(n)
 
         return e_hex, d_hex, n_hex
+
+    @staticmethod
+    def cipher(message: bytes, key_str: str) -> str:
+        """Cipher a message using public key formatted as '<e>-<N>'.
+
+        @param message: Raw byte sequence to encrypt.
+        @param key_str: Public key in format '<e>-<N>'.
+        @return: Ciphered number in little-endian hex.
+        """
+    
+        parts = key_str.strip().split("-")
+        if len(parts) != 2:
+            raise ValueError("RSA key must follow the '<e>-<N>' format.")
+
+        e = EndianUtils.hex_to_int(parts[0])
+        n = EndianUtils.hex_to_int(parts[1])
+
+        message_int = EndianUtils.bytes_to_int(message, byteorder="little")
+        if message_int >= n:
+            raise ValueError("Message is too large for the RSA modulus.")
+
+        ciphered_int = pow(message_int, e, n)
+        return EndianUtils.int_to_hex(ciphered_int)
+
+    @staticmethod
+    def decipher(ciphered_hex: str, key_str: str) -> bytes:
+        """Decipher a number using private key formatted as '<d>-<N>'.
+
+        @param ciphered_hex: Ciphered number in little-endian hex.
+        @param key_str: Private key in format '<d>-<N>'.
+        @return: Clear message bytes.
+        """
+    
+        parts = key_str.strip().split("-")
+        if len(parts) != 2:
+            raise ValueError("RSA key must follow the '<d>-<N>' format.")
+
+        d = EndianUtils.hex_to_int(parts[0])
+        n = EndianUtils.hex_to_int(parts[1])
+
+        ciphered_int = EndianUtils.hex_to_int(ciphered_hex)
+        message_int = pow(ciphered_int, d, n)
+
+        return EndianUtils.int_to_bytes(message_int, byteorder="little")
