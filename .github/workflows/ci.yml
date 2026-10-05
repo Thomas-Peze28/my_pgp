@@ -1,0 +1,29 @@
+name: CI
+
+on:
+    push:
+        branches: ["**"]
+    pull_request:
+        branches: ["**"]
+
+jobs:
+    build-and-test:
+        runs-on: self-hosted
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Build binary via Makefile
+              run: |
+                  make
+                  test -x my_pgp
+
+            - name: Run unit tests
+              run: |
+                  make tests_run
+
+            - name: Verify clean and fclean rules
+              run: |
+                  make fclean
+                  test ! -f my_pgp
