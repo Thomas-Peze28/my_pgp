@@ -1,6 +1,7 @@
 import sys
 from cli.io_handler import IOHandler
 from cipher.xor import XorCipher
+from cipher.rsa import RsaCipher
 
 
 class Controller:
@@ -45,8 +46,13 @@ class Controller:
 
     @staticmethod
     def run_rsa(args) -> None:
-        # TODO: RSA
-        raise NotImplementedError("RSA is not yet implemented.")
+        """Handles the RSA cipher operations based on the provided arguments."""
+
+        if args.mode == "-g":
+            e_hex, d_hex, n_hex = RsaCipher.generate_keys(args.p, args.q)
+            IOHandler.write_output(f"public key: {e_hex}-{n_hex}")
+            IOHandler.write_output(f"private key: {d_hex}-{n_hex}")
+            return
 
     @staticmethod
     def run_pgp_xor(args) -> None:
