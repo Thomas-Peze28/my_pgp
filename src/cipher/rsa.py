@@ -31,8 +31,8 @@ class RsaCipher:
         p = EndianUtils.hex_to_int(p_hex)
         q = EndianUtils.hex_to_int(q_hex)
 
-        if p <= 1 or q <= 1:
-            raise ValueError("Both p and q must be prime numbers greater than 1.")
+        if p <= 1 or q <= 1 or p == q:
+            raise ValueError("p and q must be distinct prime numbers greater than 1.")
 
         n = p * q
         carmichael_n = RsaCipher.lcm(p - 1, q - 1)
