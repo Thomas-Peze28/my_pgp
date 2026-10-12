@@ -20,4 +20,4 @@ re: fclean all
 tests_run:
 	@python3 -m unittest discover -s tests -p "test_*.py" -v
 
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re tests_run
