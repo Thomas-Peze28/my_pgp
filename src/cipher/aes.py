@@ -119,7 +119,7 @@ class AesCipher:
             for j in range(4):
                 state[i][j] = SBOX[state[i][j]]
         return state
-    
+
     @staticmethod
     def inv_sub_bytes(state: list[list[int]]) -> list[list[int]]:
         """Substitutes bytes in the state using the AES inverse S-box.
@@ -142,7 +142,7 @@ class AesCipher:
         for i in range(4):
             state[i] = state[i][i:] + state[i][:i]
         return state
-    
+
     @staticmethod
     def inv_shift_rows(state: list[list[int]]) -> list[list[int]]:
         """Shifts the rows of the state to the right (inverse operation).
@@ -199,7 +199,7 @@ class AesCipher:
     def inv_mix_columns(state):
         """Mixes the columns of the state using the AES InvMixColumns transformation."""
         return AesCipher._mix(state, INV_MIX_MATRIX)
-    
+
     @staticmethod
     def key_expansion(key: bytes) -> list[list[list[int]]]:
         """Expands a 16-byte key into 11 round keys.
@@ -207,11 +207,11 @@ class AesCipher:
         @param key: The original cipher key as a byte array.
         @return: A list of round keys, each represented as a 4x4 matrix.
         """
-        
+
         words = []
         for i in range(4):
             words.append(list(key[4 * i : 4 * i + 4]))
-            
+
         for i in range(4, 44):
             temp = words[i - 1][:]
             if i % 4 == 0:
@@ -225,10 +225,12 @@ class AesCipher:
 
         round_keys = []
         for k in range(11):
-            key_bytes = bytes(words[4 * k] + words[4 * k + 1] + words[4 * k + 2] + words[4 * k + 3])
+            key_bytes = bytes(
+                words[4 * k] + words[4 * k + 1] + words[4 * k + 2] + words[4 * k + 3]
+            )
             round_keys.append(AesCipher.bytes_to_state(key_bytes))
         return round_keys
-    
+
     @staticmethod
     def encrypt_block(block: bytes, key: bytes) -> bytes:
         """Encrypts a single 16-byte block with AES-128.
@@ -237,24 +239,24 @@ class AesCipher:
         @param key: The 16-byte cipher key.
         @return: The 16-byte encrypted block.
         """
-        
+
         round_keys = AesCipher.key_expansion(key)
         state = AesCipher.bytes_to_state(block)
-        
+
         state = AesCipher.add_round_key(state, round_keys[0])
-        
+
         for round in range(1, 10):
             state = AesCipher.sub_bytes(state)
             state = AesCipher.shift_rows(state)
             state = AesCipher.mix_columns(state)
             state = AesCipher.add_round_key(state, round_keys[round])
-            
+
         state = AesCipher.sub_bytes(state)
         state = AesCipher.shift_rows(state)
         state = AesCipher.add_round_key(state, round_keys[10])
-    
+
         return AesCipher.state_to_bytes(state)
-    
+
     @staticmethod
     def decrypt_block(block: bytes, key: bytes) -> bytes:
         """Decrypts a single 16-byte block with AES-128.
@@ -263,20 +265,105 @@ class AesCipher:
         @param key: The 16-byte cipher key.
         @return: The 16-byte decrypted block.
         """
-        
+
         round_keys = AesCipher.key_expansion(key)
         state = AesCipher.bytes_to_state(block)
-        
+
         state = AesCipher.add_round_key(state, round_keys[10])
-        
+
         for round in range(9, 0, -1):
             state = AesCipher.inv_shift_rows(state)
             state = AesCipher.inv_sub_bytes(state)
             state = AesCipher.add_round_key(state, round_keys[round])
             state = AesCipher.inv_mix_columns(state)
-            
+
         state = AesCipher.inv_shift_rows(state)
         state = AesCipher.inv_sub_bytes(state)
         state = AesCipher.add_round_key(state, round_keys[0])
-    
+
         return AesCipher.state_to_bytes(state)
+
+    @staticmethod
+    def swap_words(data: bytes) -> bytes:
+        """Reverses the byte order inside each 4-byte word.
+
+        @param data: The bytes to convert (length must be a multiple of 4).
+        @return: The bytes with each 4-byte group reversed.
+        """
+        result = b""
+        for i in range(0, len(data), 4):
+            result += data[i : i + 4][::-1]
+        return result
+
+    @staticmethod
+    def cipher_block(message: bytes, key_hex: str) -> str:
+        """Encrypts a single 16-byte block.
+
+        @param message: The 16-byte clear block.
+        @param key_hex: The key as a hexadecimal string.
+        @return: The encrypted block as a hexadecimal string.
+        """
+
+        key = AesCipher.swap_words(EndianUtils.hex_to_bytes(key_hex))
+
+        if len(key) != 16:
+            raise ValueError("AES-128 key must be 16 bytes (32 hex characters).")
+        if len(message) != 16:
+            raise ValueError(f"AES block must be 16 bytes (length: {len(message)}).")
+
+        ciphered = AesCipher.encrypt_block(message, key)
+        return AesCipher.swap_words(ciphered).hex()
+
+    @staticmethod
+    def decipher_block(ciphered_hex: str, key_hex: str) -> bytes:
+        """Decrypts a single 16-byte block.
+
+        @param ciphered_hex: The encrypted block as a hexadecimal string.
+        @param key_hex: The key as a hexadecimal string.
+        @return: The decrypted block as bytes.
+        """
+
+        key = AesCipher.swap_words(EndianUtils.hex_to_bytes(key_hex))
+        if len(key) != 16:
+            raise ValueError("AES-128 key must be 16 bytes (32 hex characters).")
+
+        ciphered = AesCipher.swap_words(EndianUtils.hex_to_bytes(ciphered_hex))
+        if len(ciphered) != 16:
+            raise ValueError(f"AES block must be 16 bytes (length: {len(ciphered)}).")
+
+        deciphered = AesCipher.decrypt_block(ciphered, key)
+        return deciphered
+
+    @staticmethod
+    def cipher_stream(message: bytes, key_hex: str) -> str:
+        """Encrypts a message of any length, block by block.
+
+        @param message: The clear message as bytes.
+        @param key_hex: The key as a hexadecimal string.
+        @return: The encrypted message as a hexadecimal string.
+        """
+        remainder = len(message) % 16
+        if remainder != 0:
+            message += b"\x00" * (16 - remainder)
+
+        chunks = []
+        for i in range(0, len(message), 16):
+            chunks.append(AesCipher.cipher_block(message[i : i + 16], key_hex))
+        return "".join(chunks)
+
+    @staticmethod
+    def decipher_stream(ciphered_hex: str, key_hex: str) -> bytes:
+        """Decrypts a message of any length, block by block.
+
+        @param ciphered_hex: The encrypted message as a hexadecimal string.
+        @param key_hex: The key as a hexadecimal string.
+        @return: The decrypted bytes (padding zeros included).
+        """
+        ciphered_hex = ciphered_hex.strip()
+        if len(ciphered_hex) % 32 != 0:
+            raise ValueError("Cipher text length must be a multiple of 16 bytes.")
+
+        result = b""
+        for i in range(0, len(ciphered_hex), 32):
+            result += AesCipher.decipher_block(ciphered_hex[i : i + 32], key_hex)
+        return result
