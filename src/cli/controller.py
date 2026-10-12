@@ -8,36 +8,39 @@ class Controller:
     """Controller class responsible for dispatching the appropriate cryptographic operation based on user input."""
 
     @staticmethod
-    def run_xor(args) -> None:
-        """Handles the XOR cipher operations based on the provided arguments."""
-    
-        is_decipher = (args.mode == "-d")
-    
-        raw_data = IOHandler.read_input(
-            block_mode=args.block_mode,
-            is_rsa=False,
-            is_decipher=is_decipher
-        )
+    def _xor_process(args, key_hex: str, raw_data: bytes) -> None:
+        """Ciphers or deciphers raw_data with XOR using key_hex, then writes the result."""
 
         if args.block_mode:
             if args.mode == "-c":
-                ciphered = XorCipher.cipher_block(raw_data, args.key)
+                ciphered = XorCipher.cipher_block(raw_data, key_hex)
                 IOHandler.write_output(ciphered)
             else:
                 cipher_hex = raw_data.decode("ascii").strip()
-                deciphered = XorCipher.decipher_block(cipher_hex, args.key)
+                deciphered = XorCipher.decipher_block(cipher_hex, key_hex)
                 IOHandler.write_raw_bytes(deciphered)
                 sys.stdout.write("\n")
                 sys.stdout.flush()
         else:
             if args.mode == "-c":
-                ciphered = XorCipher.cipher_stream(raw_data, args.key)
+                ciphered = XorCipher.cipher_stream(raw_data, key_hex)
                 IOHandler.write_output(ciphered)
             else:
                 cipher_hex = raw_data.decode("ascii").strip()
-                deciphered = XorCipher.decipher_stream(cipher_hex, args.key)
+                deciphered = XorCipher.decipher_stream(cipher_hex, key_hex)
                 IOHandler.write_raw_bytes(deciphered)
                 sys.stdout.flush()
+
+    @staticmethod
+    def run_xor(args) -> None:
+        """Handles the XOR cipher operations based on the provided arguments."""
+
+        raw_data = IOHandler.read_input(
+            block_mode=args.block_mode,
+            is_rsa=False,
+            is_decipher=(args.mode == "-d")
+        )
+        Controller._xor_process(args, args.key, raw_data)
 
     @staticmethod
     def run_aes(args) -> None:
