@@ -4,7 +4,7 @@ ENTRY   =   src/main.py
 
 all: $(NAME)
 
-$(NAME):
+$(NAME): $(ENTRY)
 	@cp $(ENTRY) $(NAME)
 	@chmod +x $(NAME)
 
