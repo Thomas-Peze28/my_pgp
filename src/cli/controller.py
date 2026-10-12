@@ -2,6 +2,7 @@ import sys
 from cli.io_handler import IOHandler
 from cipher.xor import XorCipher
 from cipher.rsa import RsaCipher
+from cipher.aes import AesCipher
 
 
 class Controller:
@@ -43,9 +44,41 @@ class Controller:
         Controller._xor_process(args, args.key, raw_data)
 
     @staticmethod
+    def _aes_process(args, key_hex: str, raw_data: bytes) -> None:
+        """Ciphers or deciphers raw_data with AES using key_hex, then writes the result."""
+
+        if args.block_mode:
+            if args.mode == "-c":
+                ciphered = AesCipher.cipher_block(raw_data, key_hex)
+                IOHandler.write_output(ciphered)
+            elif args.mode == "-d":
+                cipher_hex = raw_data.decode("ascii").strip()
+                deciphered = AesCipher.decipher_block(cipher_hex, key_hex)
+                IOHandler.write_raw_bytes(deciphered)
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+        else:
+            if args.mode == "-c":
+                ciphered = AesCipher.cipher_stream(raw_data, key_hex)
+                IOHandler.write_output(ciphered)
+            elif args.mode == "-d":
+                cipher_hex = raw_data.decode("ascii").strip()
+                deciphered = AesCipher.decipher_stream(cipher_hex, key_hex)
+                IOHandler.write_raw_bytes(deciphered)
+                sys.stdout.flush()
+
+
+    @staticmethod
     def run_aes(args) -> None:
-        # TODO: AES-128
-        raise NotImplementedError("AES is not yet implemented.")
+        """Handles the AES cipher operations based on the provided arguments."""
+
+        raw_data = IOHandler.read_input(
+            block_mode=args.block_mode,
+            is_rsa=False,
+            is_decipher=(args.mode == "-d")
+        )
+        Controller._aes_process(args, args.key, raw_data)
+
 
     @staticmethod
     def run_rsa(args) -> None:
