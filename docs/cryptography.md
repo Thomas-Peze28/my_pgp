@@ -2,57 +2,57 @@
 
 [<- Back to README](../README.md)
 
-MyPGP is structured around a layered cryptographic design. The payload cipher handles the message, while a future hybrid layer will protect the payload key with RSA.
+All algorithms are implemented by hand and follow the subject's formats.
 
-## XOR
+- **Numbers** (keys, RSA values, ciphertexts): hexadecimal, little endian.
+- **Messages**: sequences of bytes.
 
-The implemented XOR engine supports two modes:
+## XOR — `cipher/xor.py`
 
-- **Block mode:** the message and key have exactly the same byte length. Each byte is XORed with the corresponding key byte.
-- **Stream mode:** the message is split into chunks matching the key length. An incomplete final chunk is padded with zero bytes before XOR.
+- **Block (`-b`)**: message and key have the same length. Output byte `i` = `message[n-1-i] XOR key[i]` (subject convention).
+- **Stream**: blocks of the key length, last block padded with zeros.
 
-The CLI accepts hexadecimal keys. Encrypted output is also hexadecimal so it can be safely transported as text. The low-level implementation lives in `src/cipher/xor.py`; conversion details are delegated to `src/utils/endian.py`.
+**Limit:** a repeated key is weak, `message XOR ciphertext` reveals it.
 
-```python
-from cipher.xor import XorCipher
+## AES-128 — `cipher/aes.py`
 
-ciphertext = XorCipher.cipher_stream(b"12345678", "57686174")
-plaintext = XorCipher.decipher_stream(ciphertext, "57686174")
+16-byte blocks, 16-byte key, 10 rounds. The state is a 4x4 matrix filled column by column.
+
+| Step | Role | Inverse |
+| --- | --- | --- |
+| `add_round_key` | XOR with the round key | itself |
+| `sub_bytes` | S-box substitution (non-linear) | `inv_sub_bytes` |
+| `shift_rows` | rotate row `r` left by `r` | `inv_shift_rows` |
+| `mix_columns` | mix each column (`MIX_MATRIX`, `gmul`) | `inv_mix_columns` |
+
+- `key_expansion`: 11 round keys from the key (`RotWord`, `SubWord`, `RCON`).
+- `encrypt_block` / `decrypt_block`: standard AES, tested against FIPS-197.
+- **Subject convention** (`swap_words`): key and ciphertext have their bytes reversed in each 4-byte group. The clear message is not converted.
+- **Stream**: 16-byte blocks encrypted independently (ECB), last block padded with zeros.
+
+**Limit:** ECB leaks patterns (identical blocks give identical output).
+
+## RSA — `cipher/rsa.py`
+
+Key generation (`-g P Q`):
+
+1. `n = p * q`
+2. `λ(n) = lcm(p - 1, q - 1)` (Carmichael)
+3. `e` = largest Fermat prime (65537, 257, 17, 5, 3) smaller than `λ(n)` and coprime with it
+4. `d = e⁻¹ mod λ(n)`
+
+Public key `e-n`, private key `d-n`. The message is read as a little-endian number `m < n`:
+
+- encrypt: `c = m^e mod n`
+- decrypt: `m = c^d mod n`
+
+**Limit:** textbook RSA, no padding (OAEP would be needed in practice).
+
+## PGP — `run_pgp_xor` / `run_pgp_aes`
+
+```text
+-c  key = SYM_KEY:PUBLIC    line 1 = RSA(SYM_KEY)    line 2 = XOR/AES(message)
+-d  key = RSA(SYM_KEY):PRIVATE    stdin = line 2     output = message
 ```
 
-For production use, a repeated XOR key is not cryptographically secure. It is implemented here as a learning-oriented symmetric primitive and as the payload cipher for the planned `pgp-xor` workflow.
-
-## AES
-
-The planned AES module should provide a standard AES-128 implementation with an explicit mode and padding policy. The implementation should:
-
-1. Validate a 16-byte key.
-2. Define the block mode, preferably an authenticated mode such as GCM for a complete application.
-3. Treat nonce or IV handling as part of the ciphertext format.
-4. Reject malformed padding, authentication tags, and ciphertext sizes.
-5. Expose pure byte-oriented methods to the controller.
-
-The `aes` controller entry point is currently a placeholder and must not be presented as production encryption.
-
-## RSA
-
-The planned RSA module should support key generation from the `P` and `Q` parameters accepted by `rsa -g P Q`, then expose public-key encryption and private-key decryption. It must validate that:
-
-- `P` and `Q` are valid, distinct primes.
-- The modulus and exponent satisfy the selected RSA scheme.
-- Messages fit the chosen padding scheme.
-- Generated keys are serialized in a documented format.
-
-Textbook RSA must not be used for application encryption. OAEP should be preferred for encryption, and all randomness should come from a secure system source.
-
-## Hybrid PGP workflows
-
-A hybrid workflow encrypts the message with a fresh symmetric session key and encrypts that session key with RSA:
-
-1. Generate a random session key.
-2. Encrypt the payload with XOR or AES.
-3. Encrypt or wrap the session key with the recipient's RSA public key.
-4. Serialize the algorithm identifier, wrapped key, nonce or metadata, and payload.
-5. During decryption, recover the session key with the RSA private key and decrypt the payload.
-
-`pgp-xor` should use the XOR payload engine, while `pgp-aes` should use AES. Both handlers should share serialization and key-management helpers without duplicating controller or I/O code.
+RSA drops the leading zeros of a number, so the decrypted symmetric key is padded back with zeros: to 16 bytes for AES, to the message size for XOR in block mode.
