@@ -15,7 +15,7 @@ class Controller:
             if args.mode == "-c":
                 ciphered = XorCipher.cipher_block(raw_data, key_hex)
                 IOHandler.write_output(ciphered)
-            else:
+            elif args.mode == "-d":
                 cipher_hex = raw_data.decode("ascii").strip()
                 deciphered = XorCipher.decipher_block(cipher_hex, key_hex)
                 IOHandler.write_raw_bytes(deciphered)
@@ -25,7 +25,7 @@ class Controller:
             if args.mode == "-c":
                 ciphered = XorCipher.cipher_stream(raw_data, key_hex)
                 IOHandler.write_output(ciphered)
-            else:
+            elif args.mode == "-d":
                 cipher_hex = raw_data.decode("ascii").strip()
                 deciphered = XorCipher.decipher_stream(cipher_hex, key_hex)
                 IOHandler.write_raw_bytes(deciphered)
@@ -78,8 +78,33 @@ class Controller:
 
     @staticmethod
     def run_pgp_xor(args) -> None:
-        # TODO: PGP-XOR
-        raise NotImplementedError("PGP-XOR is not yet implemented.")
+        """Handles the PGP-XOR cipher operations based on the provided arguments."""
+
+        parts = args.key.strip().split(":")
+        if len(parts) != 2:
+            raise ValueError("PGP-XOR key must follow the 'SYMMETRIC_KEY:RSA_KEY' format.")
+        sym_key, rsa_key = parts
+        
+        if args.mode == "-c":
+            raw_data = IOHandler.read_input(
+                block_mode=args.block_mode,
+                is_rsa=False,
+                is_decipher=False
+            )
+            ciphered_key = RsaCipher.cipher(bytes.fromhex(sym_key), rsa_key)
+            IOHandler.write_output(ciphered_key)
+            Controller._xor_process(args, sym_key, raw_data)
+        elif args.mode == "-d":
+            sym_bytes = RsaCipher.decipher(sym_key, rsa_key)
+            raw_data = IOHandler.read_input(
+                block_mode=args.block_mode,
+                is_rsa=False,
+                is_decipher=True
+            )
+            if args.block_mode:
+                message_len = len(raw_data.strip()) // 2
+                sym_bytes = sym_bytes.ljust(message_len, b"\x00")
+            Controller._xor_process(args, sym_bytes.hex(), raw_data)
 
     @staticmethod
     def run_pgp_aes(args) -> None:
