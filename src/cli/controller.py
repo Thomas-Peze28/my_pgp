@@ -141,8 +141,31 @@ class Controller:
 
     @staticmethod
     def run_pgp_aes(args) -> None:
-        # TODO: PGP-AES
-        raise NotImplementedError("PGP-AES is not yet implemented.")
+        """Handles the PGP-AES cipher operations based on the provided arguments."""
+
+        parts = args.key.strip().split(":")
+        if len(parts) != 2:
+            raise ValueError("PGP-AES key must follow the 'SYMMETRIC_KEY:RSA_KEY' format.")
+        sym_key, rsa_key = parts
+
+        if args.mode == "-c":
+            raw_data = IOHandler.read_input(
+                block_mode=args.block_mode,
+                is_rsa=False,
+                is_decipher=False
+            )
+            ciphered_key = RsaCipher.cipher(bytes.fromhex(sym_key), rsa_key)
+            IOHandler.write_output(ciphered_key)
+            Controller._aes_process(args, sym_key, raw_data)
+        elif args.mode == "-d":
+            sym_bytes = RsaCipher.decipher(sym_key, rsa_key)
+            raw_data = IOHandler.read_input(
+                block_mode=args.block_mode,
+                is_rsa=False,
+                is_decipher=True
+            )
+            sym_bytes = sym_bytes.ljust(16, b"\x00")
+            Controller._aes_process(args, sym_bytes.hex(), raw_data)
 
     @classmethod
     def dispatch(cls, args) -> None:
